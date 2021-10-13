@@ -5,9 +5,10 @@ CREATE TABLE Proyectos(
 	servicioId VARCHAR(5) NOT NULL,
 	personaId VARCHAR(8) NOT NULL,
 	nombre VARCHAR(11),
+	fecha DATE NOT NULL,
+	precio INT NOT NULL,
 	inicio DATE NOT NULL,
 	fin DATE,
-	precio INT NOT NULL,
 	recursos INT NOT NULL
 );
 CREATE TABLE Participa(
@@ -16,12 +17,10 @@ CREATE TABLE Participa(
 	salario INT NOT NULL,
 	tiempo INT NOT NULL
 );
-CREATE TABLE Condiciones(
-	id VARCHAR(15) NOT NULL,
-	proyectoId VARCHAR(15) NOT NULL,
-	nivelRuido INT NOT NULL,
-	tipoProteccion VARCHAR(15) NOT NULL
-);
+
+
+
+
 
 
 
@@ -75,7 +74,6 @@ CREATE TABLE Ubicaciones(
 --CICLO1: XTablas
 DROP TABLE Proyectos CASCADE CONSTRAINTS;
 DROP TABLE Participa CASCADE CONSTRAINTS;
-DROP TABLE Condiciones CASCADE CONSTRAINTS;
 
 DROP TABLE Servicios CASCADE CONSTRAINTS;
 DROP TABLE ServiciosEspecialidades CASCADE CONSTRAINTS;
@@ -89,9 +87,9 @@ DROP TABLE Empleados CASCADE CONSTRAINTS;
 DROP TABLE Ubicaciones CASCADE CONSTRAINTS;
 
 --CICLO1: PoblarOK(1)
-INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('1234','D35','34TY','100456','ALBERTO-2','30-09-2021','31-10-2021',2000,50000);
-INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('12345','D36','34TT','100457','CARLOS-2','23-09-2021','25-10-2021',10000,100000);
-INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('123456','D37','34TC','100458','JUAN-2','3-09-2021',NULL,80000,100000);
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('1234','D35','34TY','100456','ALBERTO-2','20-09-2021',2000,'30-09-2021','31-10-2021',50000);
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('12345','D36','34TT','100457','CARLOS-2','10-09-2021',10000,'23-09-2021','25-10-2021',100000);
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('123456','D37','34TC','100458','JUAN-2','1-09-2021',80000,'3-09-2021',NULL,100000);
 
 INSERT INTO Especialidades(nombre,empleadoId,profesional,salario) VALUES ('JULIAN-3','3452','F',3000000);
 INSERT INTO Especialidades(nombre,empleadoId,profesional,salario) VALUES ('DANIEL-3','3453','T',4000000);
@@ -130,7 +128,6 @@ INSERT INTO Servicios(codigo,nombre,tipo,presupuesto) VALUES ('67345','INTERVENT
 --CICLO 1: XPoblar(Eliminar los datos)
 DELETE FROM Proyectos;
 DELETE FROM Participa;
-DELETE FROM Condiciones;
 
 DELETE FROM Servicios;
 DELETE FROM ServiciosEspecialidades;
@@ -237,3 +234,6 @@ FROM especialidades
 --CICLO1:Cuantos proyectos diferentes hay en total
 SELECT COUNT(codigo)
 FROM proyectos
+
+
+--Ciclo1: CRUD: Mantener Proyecto
