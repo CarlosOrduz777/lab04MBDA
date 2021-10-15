@@ -231,6 +231,8 @@ SELECT COUNT(codigo)
 FROM proyectos
 
 
+
+
 --Ciclo1: CRUD: Mantener Proyecto
 
 --Tuplas
@@ -361,3 +363,102 @@ DROP TRIGGER TG_ProyectosPrecioBI;
 DROP TRIGGER TG_ProyectosRecursos_AI;
 DROP TRIGGER TG_Proyectos_BU;
 DROP TRIGGER TG_Proyectos_BD;
+
+--Consultas
+
+
+
+
+--Ciclo2: CRUD: Mantener especialidad
+
+--Tuplas
+ALTER TABLE especialidades ADD CONSTRAINT CK_SALARIO_MONEDA 
+CHECK(moneda >= 0);
+
+ALTER TABLE especialidades ADD CONSTRAINT CK_PROFESIONAL_NUM 
+CHECK(profesional = 0 OR profesional = 1);
+
+--TuplasOK
+--1
+insert into especialidades values ('Architect', 0, 41000);
+--2
+insert into especialidades values ('Architect', 1, 41000);
+
+--TuplasNoOk
+--1 No deberia aceptar valores menores a 0 en moneda
+insert into especialidades values ('Architect', 0, -2);
+--2 No deberia aceptar valores diferentes de 0 y 1
+insert into especialidades values ('Architect', 3497, 41000);
+
+
+--DISPARADORES
+
+--DISPARADORES: INSERT
+CREATE OR REPLACE TRIGGER TG_EspeProf_BI 
+BEFORE INSERT OR UPDATE ON especialidades 
+FOR EACH ROW
+BEGIN
+	:new.nombre := UPPER(:new.nombre);
+
+	IF(:new.profesional > 1) THEN
+		:new.profesional := 1;	
+	END IF;
+
+	IF(:new.profesional < 0) THEN
+		:new.profesional := 0;	
+	END IF;
+
+END;
+
+--DISPARADORES: DELETE
+CREATE OR REPLACE TRIGGER TG_EspNombre_BD 
+BEFORE DELETE OR UPDATE ON especialidades 
+FOR EACH ROW
+BEGIN
+
+	IF(:old.nombre = 'DESCONOCID') THEN
+		RAISE_APPLICATION_ERROR (-20501,'No se puede eliminar el campo "DESCONOCID"');
+	END IF;
+
+END;
+
+CREATE OR REPLACE TRIGGER TG_Esp_BD
+BEFORE DELETE ON especialidades 
+FOR EACH ROW
+DECLARE
+    n INT;
+BEGIN
+    SELECT COUNT(*) INTO n FROM recursos WHERE nombre_esp = :old.nombre;
+
+	IF(n > 0) THEN
+		RAISE_APPLICATION_ERROR (-20502,'No se puede eliminar especialidades usadas en recursos');
+	ELSE
+		UPDATE empleados SET nombre_especialidad='DESCONOCID' WHERE nombre_especialidad=:old.nombre;
+	END IF;
+
+END;
+
+--DisparadoresOk
+--1
+INSERT INTO especialidades VALUES('prueba', -1, 0);
+--2
+INSERT INTO empleados VALUES(0, 2, 'PRUEBA', 1);
+--3
+DELETE FROM especialidades WHERE nombre='PRUEBA';
+
+--DisparadoresNoOk
+--1
+INSERT INTO especialidades VALUES('prueba', -1, -1);
+--2
+DELETE FROM especialidades WHERE nombre='DESCONOCID';
+--3
+DELETE FROM especialidades WHERE nombre='Expeditor';
+
+--XDisparadores
+DROP TRIGGER TG_EspNombre_BD 
+DROP TRIGGER TG_EspNombre_BD 
+DROP TRIGGER TG_Esp_BD
+
+--Consultas
+SELECT proyectos
+WHERE fin < CURRENT_DATE;
