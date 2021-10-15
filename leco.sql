@@ -1,6 +1,6 @@
 -- CICLO 1: Tablas
 CREATE TABLE Proyectos(
-	codigo VARCHAR(15) NOT NULL,
+	codigo VARCHAR(40) NOT NULL,
 	ubicacionId VARCHAR(6) NOT NULL,
 	servicioId VARCHAR(5) NOT NULL,
 	personaId VARCHAR(8) NOT NULL,
@@ -9,7 +9,8 @@ CREATE TABLE Proyectos(
 	precio INT NOT NULL,
 	inicio DATE NOT NULL,
 	fin DATE,
-	recursos INT NOT NULL
+	recursos INT NOT NULL,
+	condiciones VARCHAR(50)
 );
 CREATE TABLE Participa(
 	empleadoId VARCHAR(8) NOT NULL,
@@ -17,12 +18,6 @@ CREATE TABLE Participa(
 	salario INT NOT NULL,
 	tiempo INT NOT NULL
 );
-
-
-
-
-
-
 
 CREATE TABLE Servicios(
 	codigo VARCHAR(5) NOT NULL,
@@ -87,9 +82,9 @@ DROP TABLE Empleados CASCADE CONSTRAINTS;
 DROP TABLE Ubicaciones CASCADE CONSTRAINTS;
 
 --CICLO1: PoblarOK(1)
-INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('1234','D35','34TY','100456','ALBERTO-2','20-09-2021',2000,'30-09-2021','31-10-2021',50000);
-INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('12345','D36','34TT','100457','CARLOS-2','10-09-2021',10000,'23-09-2021','25-10-2021',100000);
-INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,inicio,fin,precio,recursos) VALUES ('123456','D37','34TC','100458','JUAN-2','1-09-2021',80000,'3-09-2021',NULL,100000);
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('1234','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-09-2021','31-10-2021',50000,'50');
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D36','34TT','100457','CARLOS-2','10-09-2021',10000,'23-09-2021','25-10-2021',100000,NULL);
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,precio,recursos,condiciones) VALUES ('123456','D37','34TC','100458','JUAN-2','1-09-2021',80000,'3-09-2021',NULL,100000,'50 cascos');
 
 INSERT INTO Especialidades(nombre,empleadoId,profesional,salario) VALUES ('JULIAN-3','3452','F',3000000);
 INSERT INTO Especialidades(nombre,empleadoId,profesional,salario) VALUES ('DANIEL-3','3453','T',4000000);
@@ -237,3 +232,132 @@ FROM proyectos
 
 
 --Ciclo1: CRUD: Mantener Proyecto
+
+--Tuplas
+ALTER TABLE Proyectos ADD CONSTRAINT CK_Proyectos_Inicio
+	CHECK (inicio > fecha);
+--TuplasOK
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('1234','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-09-2021','31-10-2021',50000,'50');
+--TuplasNoOk
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('1234','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-07-2021','31-10-2021',50000,'50');
+--DISPARADORES:INSERT
+CREATE TRIGGER TG_ProyectosCod_BI
+BEFORE INSERT ON Proyectos
+FOR EACH ROW
+DECLARE
+caracter_servicio VARCHAR(1);
+fecha_actual VARCHAR(30);
+BEGIN
+SELECT tipo INTO caracter_servicio FROM Servicios
+    WHERE Servicios.codigo = :NEW.servicioId;
+SELECT TO_CHAR
+    (SYSDATE, 'YY-MM-DD HH24:MI:SS')
+     INTO fecha_actual FROM DUAL;
+:NEW.codigo := CONCAT(caracter_servicio,fecha_actual);
+END;
+--La fecha se asigna automaticamente
+CREATE TRIGGER TG_ProyectosFecha
+BEFORE INSERT ON Proyectos
+FOR EACH ROW
+DECLARE
+fecha_actual DATE;
+BEGIN
+SELECT SYSDATE INTO fecha_actual FROM DUAL;
+:NEW.fecha := fecha_actual;
+END;
+--El precio del proyecto no puede se menor del 90% ni mayor al 110% del presupuesto del servicio correspondiente.
+CREATE TRIGGER TG_ProyectosPrecioBI
+BEFORE INSERT ON Proyectos
+FOR EACH ROW
+DECLARE
+presupuesto_servicio NUMBER;
+BEGIN
+SELECT presupuesto INTO presupuesto_servicio FROM Servicios
+	WHERE Servicios.codigo = :NEW.servicioId;
+IF :NEW.precio < presupuesto_servicio *0.9 OR :NEW.precio > presupuesto_servicio *1.1  THEN
+	RAISE_APPLICATION_ERROR(-20003,'Precio no valido');
+END IF;
+END;
+--Los recursos asigados se generan automáticamente y corresponden al 70% del precio del proyecto.
+CREATE TRIGGER TG_ProyectosRecursos_AI
+BEFORE INSERT ON Proyectos
+FOR EACH ROW
+BEGIN
+:NEW.recursos := :NEW.precio * 0.7;
+END;
+
+--DISPARADORES:UPDATE
+CREATE OR REPLACE TRIGGER TG_Proyectos_BU
+BEFORE UPDATE ON Proyectos
+FOR EACH ROW
+DECLARE
+fecha_actual DATE;
+BEGIN
+    :NEW.codigo := :OLD.codigo;
+    :NEW.ubicacionId := :OLD.ubicacionId;
+    :NEW.servicioId := :OLD.servicioId;
+    :NEW.personaId := :OLD.personaId;
+    :NEW.nombre := :OLD.nombre;
+    :NEW.fecha := :OLD.fecha;
+    :NEW.inicio := :OLD.inicio;
+    :NEW.precio := :OLD.precio;
+    :NEW.recursos := :OLD.recursos;
+    SELECT SYSDATE INTO fecha_actual FROM dual;
+    IF fecha_actual >= :OLD.fin THEN
+        :NEW.fin := :OLD.fin;
+        :NEW.condiciones := :OLD.condiciones;
+    END IF;
+END;
+--Disparadores: DELETE
+CREATE OR REPLACE TRIGGER TG_Proyectos_BD
+BEFORE DELETE ON Proyectos
+FOR EACH ROW
+DECLARE
+fecha_actual DATE;
+BEGIN
+SELECT SYSDATE INTO fecha_actual FROM DUAL;
+IF (:OLD.inicio <= fecha_actual) THEN
+	RAISE_APPLICATION_ERROR(-20002,'No se permite eliminar');
+END IF;
+
+END;
+
+--DisparadoresOK
+--1
+INSERT INTO Servicios(codigo,nombre,tipo,presupuesto) VALUES ('67345','DISEÑO','D',30000000);
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-09-2021','31-10-2021',50000,'50');
+--2
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-11-2021','31-12-2021',50000,'50');
+--3
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-11-2021','31-12-2021',50000,'50');
+--4
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-11-2021','31-12-2021',50000,'50');
+--5 Hay que actualizar el codigo ya que este se genera automatico con la fecha actual
+UPDATE Proyectos SET fin = TO_DATE('21-05-2022') WHERE codigo = 'D21-10-14 22:54:57';
+--6 Hay que actualizar el codigo ya que este se genera automatico con la fecha actual
+ALTER TABLE Proyectos DROP CONSTRAINT CK_Proyectos_Inicio;
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-07-2021','31-12-2021',50000,'50');
+DELETE FROM Proyectos WHERE codigo = 'D21-10-14 23:17:09';
+
+
+--DisparadoresNoOk
+--1 No se puede porque el codigo es automatizado
+--2
+	--Falla ya que la fecha se actualiza automaticamente por la fecha actual
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-10-2021','31-11-2021',50000,'50');
+--3 --Precio no valido menor que 90% y mayor 110%
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',26000000,'15-11-2021','31-12-2021',50000,'50');
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',34000000,'15-11-2021','31-12-2021',50000,'50');
+--4 No se puede porque el codigo es automatizado
+--5
+INSERT INTO Proyectos(codigo,ubicacionId,servicioId,personaId,nombre,fecha,precio,inicio,fin,recursos,condiciones) VALUES ('12345','D35','67345','100456','ALBERTO-2','20-08-2021',30000000,'15-11-2021','10-09-2021',50000,'50');
+UPDATE Proyectos SET fin = TO_DATE('21-05-2022') WHERE codigo = 'D21-10-14 23:06:58';
+--6 Hay que actualizar el codigo ya que este se genera automatico con la fecha actual
+DELETE FROM Proyectos WHERE codigo = 'D21-10-14 22:54:57';
+--XDisparadores
+DROP TRIGGER TG_ProyectosCod_BI;
+DROP TRIGGER TG_ProyectosFecha;
+DROP TRIGGER TG_ProyectosPrecioBI;
+DROP TRIGGER TG_ProyectosRecursos_AI;
+DROP TRIGGER TG_Proyectos_BU;
+DROP TRIGGER TG_Proyectos_BD;
